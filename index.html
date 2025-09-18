@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora con Callbacks</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+
+                <h1 class="text-center mb-4">Calculadora con Callbacks</h1>
+
+                <div class="card">
+                    <div class="card-body">
+                        <form id="formulario">
+                            <div class="mb-3">
+                                <label for="numero" class="form-label">Ingresa un número (1-25):</label>
+                                <input type="number" class="form-control" id="numero" min="1" max="25"
+                                    placeholder="Ejemplo: 10" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Calcular Multiplicaciones</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="resultado" class="mt-4"></div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // ===== EXPLICACIÓN DE CALLBACKS =====
+        // Un callback es una función que se pasa como parámetro a otra función
+        // y se ejecuta después de que la función principal termine su trabajo
+
+        // 1️ CALLBACK DE VALIDACIÓN
+        // Esta función recibe un número y un callback que se ejecuta según la validación
+        function validarNumero(numero, callbackExito, callbackError) {
+            console.log('Validando número:', numero);
+
+            // Simular un pequeño delay para mostrar el concepto de callback
+            setTimeout(() => {
+                if (isNaN(numero) || numero < 1 || numero > 25) {
+                    // Si hay error, ejecutamos el callback de error
+                    callbackError('Por favor ingresa un número válido entre 1 y 25');
+                } else {
+                    // Si está bien, ejecutamos el callback de éxito
+                    callbackExito(numero);
+                }
+            }, 100);
+        }
+
+        // 2️ CALLBACK DE PROCESAMIENTO
+        // Esta función procesa cada multiplicación y usa callbacks para manejar cada resultado
+        function procesarMultiplicacion(numero, multiplicador, callbackResultado) {
+            console.log(`Procesando: ${numero} x ${multiplicador}`);
+
+            // Simular procesamiento con delay más corto y consistente
+            setTimeout(() => {
+                const resultado = numero * multiplicador;
+                const textoMultiplicacion = `${numero} × ${multiplicador} = ${resultado}`;
+
+                // Ejecutar callback con el resultado de esta multiplicación
+                callbackResultado(textoMultiplicacion);
+
+            }, 300); // Delay fijo para mejor control
+        }
+
+        // 3️ ENCOLAMIENTO DE CALLBACKS
+        // Esta función encola todas las multiplicaciones usando callbacks
+        function encolarMultiplicaciones(numero, callbackProgreso, callbackCompleto) {
+            console.log('Iniciando encolamiento de multiplicaciones');
+
+            let contador = 0;
+            let multiplicadorActual = 1; // Variable para controlar el bucle
+            const total = numero;
+
+            // Función que procesa la siguiente multiplicación (SIN recursividad)
+            function procesarSiguiente() {
+                // Verificar si aún hay multiplicaciones por hacer
+                if (multiplicadorActual <= numero) {
+                    console.log(`Procesando multiplicación ${multiplicadorActual} de ${numero}`);
+
+                    // Guardar el valor actual antes de que cambie
+                    const multiplicadorParaProcesar = multiplicadorActual;
+
+                    // Callback que se ejecuta cuando se completa cada multiplicación
+                    const onResultado = (texto) => {
+                        contador++;
+                        console.log(`Completada multiplicación ${contador}/${total}`);
+                        callbackProgreso(texto, contador, total);
+
+                        // Incrementar para la siguiente multiplicación
+                        multiplicadorActual++;
+
+                        // IMPORTANTE: Continuar con la siguiente (SIN llamada recursiva)
+                        if (multiplicadorActual <= numero) {
+                            // Usar setTimeout para evitar bloqueos y mantener el orden
+                            setTimeout(procesarSiguiente, 100); 
+                        } else {
+                            // Si terminamos todas, ejecutar callback final
+                            setTimeout(() => {
+                                callbackCompleto();
+                            }, 100);
+                        }
+                    };
+
+                    // Procesar la multiplicación actual
+                    procesarMultiplicacion(numero, multiplicadorParaProcesar, onResultado);
+                }
+            }
+
+            // Iniciar el procesamiento
+            procesarSiguiente();
+        }
+
+        // 4️ CALLBACKS DE INTERFAZ
+        // Estas funciones manejan la actualización de la interfaz usando callbacks
+
+        function mostrarLoading() {
+            const resultado = document.getElementById('resultado');
+            resultado.innerHTML = `
+                <div class="alert alert-info text-center">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    Calculando multiplicaciones...
+                </div>
+            `;
+        }
+
+        function mostrarError(mensaje) {
+            const resultado = document.getElementById('resultado');
+            resultado.innerHTML = `<div class="alert alert-danger">${mensaje}</div>`;
+        }
+
+        function mostrarResultado(texto) {
+            const resultado = document.getElementById('resultado');
+            const nuevaLinea = `<div class="alert alert-light border-start border-3 py-2">${texto}</div>`;
+            resultado.innerHTML += nuevaLinea;
+        }
+
+        function mostrarCompleto() {
+            const resultado = document.getElementById('resultado');
+            resultado.innerHTML += `<div class="alert alert-success text-center">¡Cálculo completado!</div>`;
+        }
+
+        // 5️ MANEJO DEL FORMULARIO CON CALLBACKS
+        document.getElementById('formulario').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const numeroInput = document.getElementById('numero');
+            const numero = parseInt(numeroInput.value);
+            const boton = document.querySelector('button');
+
+            // Deshabilitar botón durante el procesamiento
+            boton.disabled = true;
+            boton.innerHTML = `
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                Calculando...
+            `;
+
+            mostrarLoading();
+
+            // CALLBACK 1: Validar el número
+            validarNumero(
+                numero,
+                // Callback de éxito: si la validación pasa
+                (numeroValido) => {
+                    console.log('Número válido, iniciando cálculos');
+                    document.getElementById('resultado').innerHTML = '';
+
+                    // CALLBACK 2: Encolar las multiplicaciones
+                    encolarMultiplicaciones(
+                        numeroValido,
+                        // Callback de progreso: se ejecuta por cada multiplicación
+                        (textoMultiplicacion, actual, total) => {
+                            mostrarResultado(textoMultiplicacion);
+                            console.log(`Progreso: ${actual}/${total}`);
+                        },
+                        // Callback de completado: cuando terminan todas las multiplicaciones
+                        () => {
+                            console.log('¡Todas las multiplicaciones completadas!');
+                            mostrarCompleto();
+
+                            // Rehabilitar botón
+                            boton.disabled = false;
+                            boton.textContent = 'Calcular Multiplicaciones';
+                        }
+                    );
+                },
+                // Callback de error: si la validación falla
+                (mensajeError) => {
+                    console.log('Error en validación:', mensajeError);
+                    mostrarError(mensajeError);
+
+                    // Rehabilitar botón
+                    boton.disabled = false;
+                    boton.textContent = 'Calcular Multiplicaciones';
+                }
+            );
+        });
+
+        // ===== EXPLICACIÓN EN CONSOLA =====
+        console.log(`
+        EXPLICACIÓN DE CALLBACKS:
+        
+        1️ ¿Qué es un Callback?
+        Un callback es una función que se pasa como argumento a otra función
+        y se ejecuta después de que cierta operación se complete.
+        
+        2️ ¿Cómo funcionan en este código?
+        - validarNumero(): Recibe callbacks de éxito y error
+        - procesarMultiplicacion(): Recibe callbacks para resultado y finalización
+        - encolarMultiplicaciones(): Usa callbacks para manejar progreso y completado
+        
+        3️ Encolamiento de Callbacks:
+        Las funciones se "encolan" para ejecutarse en secuencia:
+        Validación → Multiplicación 1 → Multiplicación 2 → ... → Completado
+        
+        4️ Ventajas:
+        - Control del flujo asíncrono
+        - Separación de responsabilidades
+        - Manejo de errores específico
+        - Código reutilizable
+        `);
+    </script>
+</body>
+
+</html>
